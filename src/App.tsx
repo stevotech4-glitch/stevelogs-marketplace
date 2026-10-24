@@ -148,14 +148,14 @@ export default function App() {
         .then((res) => {
           if (res.ok) {
             setAdminUnlocked(true);
-          } else {
+          } else if (res.status === 401 || res.status === 403) {
             sessionStorage.removeItem('stevelogs_admin_token');
             sessionStorage.removeItem('stevelogs_admin_unlocked');
             setAdminUnlocked(false);
           }
         })
         .catch(() => {
-          // Keep offline state safe
+          // Keep offline state safe, do not wipe token on temporary network hiccup
         });
     }
   }, [currentRoute]);
@@ -368,20 +368,11 @@ export default function App() {
           try {
             const data = JSON.parse(event.data);
             if (data && data.newBalance !== undefined) {
-              const newBal = Number(data.newBalance);
               // Update balance everywhere on screen automatically
-              setWallet((prev) => {
-                const updated = { ...prev, balance: newBal };
-                try { localStorage.setItem(STORAGE_WALLET_KEY, JSON.stringify(updated)); } catch(e){}
-                return updated;
-              });
-
-              setCurrentCustomer((prev) => {
-                if (!prev) return null;
-                const updated = { ...prev, walletBalance: newBal };
-                try { localStorage.setItem('stevelogs_customer_data', JSON.stringify(updated)); } catch(e){}
-                return updated;
-              });
+              setWallet((prev) => ({ ...prev, balance: data.newBalance }));
+              setCurrentCustomer((prev) =>
+                prev ? { ...prev, walletBalance: data.newBalance } : null
+              );
 
               // Show instant celebration pop-up
               if (data.notification) {
@@ -399,10 +390,7 @@ export default function App() {
               })
                 .then((r) => r.json())
                 .then((txs) => {
-                  if (Array.isArray(txs)) {
-                    setTransactions(txs);
-                    try { localStorage.setItem(STORAGE_TX_KEY, JSON.stringify(txs)); } catch(e){}
-                  }
+                  if (Array.isArray(txs)) setTransactions(txs);
                 })
                 .catch(() => {});
             }
@@ -448,35 +436,17 @@ export default function App() {
           // Synchronize balance if changed
           setWallet((prev) => {
             if (prev.balance !== data.wallet.balance) {
-              const updated = { ...prev, balance: data.wallet.balance };
-              try { localStorage.setItem(STORAGE_WALLET_KEY, JSON.stringify(updated)); } catch(e){}
-              return updated;
+              return { ...prev, balance: data.wallet.balance };
             }
             return prev;
           });
 
           setCurrentCustomer((prev) => {
             if (prev && prev.walletBalance !== data.wallet.balance) {
-              const updated = { ...prev, walletBalance: data.wallet.balance };
-              try { localStorage.setItem('stevelogs_customer_data', JSON.stringify(updated)); } catch(e){}
-              return updated;
+              return { ...prev, walletBalance: data.wallet.balance };
             }
             return prev;
           });
-
-          // Synchronize recent transactions if updated
-          if (Array.isArray(data.recentTransactions) && data.recentTransactions.length > 0) {
-            setTransactions((prev) => {
-              const existingIds = new Set(prev.map((t) => t.id));
-              const missing = data.recentTransactions.filter((t: any) => !existingIds.has(t.id));
-              if (missing.length > 0) {
-                const merged = [...missing, ...prev];
-                try { localStorage.setItem(STORAGE_TX_KEY, JSON.stringify(merged)); } catch(e){}
-                return merged;
-              }
-              return prev;
-            });
-          }
 
           // Check for unshown payment approved notifications (e.g. approved while offline)
           if (Array.isArray(data.unshownPopups) && data.unshownPopups.length > 0) {
@@ -1349,21 +1319,6 @@ export default function App() {
           customer={currentCustomer}
           onClose={() => setIsFundWalletOpen(false)}
           onAddFunds={(amt) => handleCreditWallet(amt, 'Flutterwave Wallet Deposit')}
-          onTransactionUpdated={() => {
-            if (currentCustomer?.id) {
-              fetch(`/api/transactions?customerId=${encodeURIComponent(currentCustomer.id)}`, {
-                headers: { 'x-customer-id': currentCustomer.id },
-              })
-                .then((r) => r.json())
-                .then((txs) => {
-                  if (Array.isArray(txs)) {
-                    setTransactions(txs);
-                    try { localStorage.setItem(STORAGE_TX_KEY, JSON.stringify(txs)); } catch (e) {}
-                  }
-                })
-                .catch(() => {});
-            }
-          }}
         />
       )}
 
@@ -1503,13 +1458,6 @@ export default function App() {
           privacyPolicy: '',
         }}
         interestProgram={interestProgramConfig}
-        customer={currentCustomer}
-        onLogout={handleCustomerLogout}
-        onOpenAuth={(mode?: 'login' | 'register') => {
-          setIsProfileOpen(false);
-          setCustomerAuthMode(mode || 'login');
-          setIsCustomerAuthOpen(true);
-        }}
         onOpenFundWallet={() => {
           setIsProfileOpen(false);
           setIsFundWalletOpen(true);

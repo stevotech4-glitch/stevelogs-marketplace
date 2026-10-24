@@ -11,7 +11,8 @@ import {
   EyeOff, 
   ShieldAlert, 
   Terminal,
-  CheckCircle2
+  CheckCircle2,
+  Delete
 } from 'lucide-react';
 
 interface AdminLoginPageProps {
@@ -25,6 +26,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
 }) => {
   const [authMode, setAuthMode] = useState<'passcode' | 'credentials'>('passcode');
   const [passcode, setPasscode] = useState('');
+  const [showPin, setShowPin] = useState(false);
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -37,7 +39,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Focus input on mount
+  // Focus input on mount or mode change
   useEffect(() => {
     setTimeout(() => {
       inputRef.current?.focus();
@@ -63,19 +65,20 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
   const handleLogin = async (codeToSubmit?: string) => {
     if (lockedUntil && remainingSeconds > 0) return;
 
+    const rawCode = (codeToSubmit !== undefined ? codeToSubmit : passcode).trim();
     const payload = authMode === 'passcode'
-      ? { passcode: codeToSubmit || passcode }
-      : { username, password };
+      ? { passcode: rawCode }
+      : { username: username.trim(), password: password.trim() };
 
-    if (authMode === 'passcode' && (!payload.passcode || payload.passcode.length < 4)) {
+    if (authMode === 'passcode' && (!rawCode || rawCode.length < 4)) {
       setError(true);
-      setErrorMessage('Please enter the administrative passcode.');
+      setErrorMessage('Please enter an authorized administrative passcode (min. 4 digits).');
       return;
     }
 
     if (authMode === 'credentials' && (!username.trim() || !password)) {
       setError(true);
-      setErrorMessage('Please provide both username and password.');
+      setErrorMessage('Please enter both administrative username and password/passcode.');
       return;
     }
 
@@ -90,29 +93,51 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
+      let data: any = null;
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        try {
+          data = await res.json();
+        } catch (jsonErr) {
+          console.warn('[AdminLogin] JSON parse notice:', jsonErr);
+        }
+      }
 
-      if (res.ok && data.token) {
+      if (res.ok && data?.token) {
         sessionStorage.setItem('stevelogs_admin_token', data.token);
         sessionStorage.setItem('stevelogs_admin_unlocked', 'true');
         setError(false);
+        setErrorMessage('');
         onSuccess(data.token);
       } else if (res.status === 429) {
         setError(true);
-        setLockedUntil(data.lockedUntil || Date.now() + 5 * 60 * 1000);
-        setRemainingSeconds(data.remainingSeconds || 300);
-        setErrorMessage(data.error || 'Account temporarily locked due to excessive failed attempts.');
+        const lockTime = data?.lockedUntil || (Date.now() + 5 * 60 * 1000);
+        setLockedUntil(lockTime);
+        setRemainingSeconds(data?.remainingSeconds || 300);
+        setErrorMessage(data?.error || 'Security Lockout: Too many failed administrative attempts.');
+      } else if (data?.error) {
+        setError(true);
+        setErrorMessage(data.error);
+        if (authMode === 'passcode') {
+          setPasscode('');
+          inputRef.current?.focus();
+        }
       } else {
         setError(true);
-        setErrorMessage(data.error || 'Authentication failed. Please verify credentials.');
+        setErrorMessage(`Authentication error (HTTP ${res.status}: ${res.statusText || 'Access Denied'}). Please verify credentials.`);
         if (authMode === 'passcode') {
           setPasscode('');
           inputRef.current?.focus();
         }
       }
-    } catch {
+    } catch (fetchErr: any) {
+      console.error('[AdminLogin] Connection error:', fetchErr);
       setError(true);
-      setErrorMessage('Server connection error. Please try again.');
+      setErrorMessage(
+        fetchErr?.message
+          ? `Connection failed (${fetchErr.message}). Check your network connection and retry.`
+          : 'Unable to reach the administrator authentication service. Please verify your connection.'
+      );
     } finally {
       setLoading(false);
     }
@@ -120,9 +145,12 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
 
   const handleDigitClick = (digit: string) => {
     if (loading || (lockedUntil && remainingSeconds > 0)) return;
-    if (passcode.length < 8) {
+    if (passcode.length < 12) {
       const nextCode = passcode + digit;
       setPasscode(nextCode);
+      setError(false);
+      setErrorMessage('');
+      // Quick auto-submit if exactly 6 digits are typed and user paused, or user can click Enter/Submit
       if (nextCode.length === 6) {
         handleLogin(nextCode);
       }
@@ -134,6 +162,14 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
     setPasscode((prev) => prev.slice(0, -1));
     setError(false);
     setErrorMessage('');
+  };
+
+  const handleClearAll = () => {
+    if (loading) return;
+    setPasscode('');
+    setError(false);
+    setErrorMessage('');
+    inputRef.current?.focus();
   };
 
   return (
@@ -247,67 +283,86 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
           {/* Form: Passcode Mode */}
           {authMode === 'passcode' ? (
             <div className="space-y-5">
-              {/* Hidden real input for typing */}
-              <input
-                ref={inputRef}
-                type="password"
-                maxLength={8}
-                value={passcode}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, '');
-                  setPasscode(val);
-                  if (val.length === 6) {
-                    handleLogin(val);
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleLogin();
-                }}
-                disabled={Boolean(lockedUntil && remainingSeconds > 0) || loading}
-                className="opacity-0 absolute -z-10"
-                autoFocus
-              />
+              {/* Visible Interactive PIN Display & Input Container */}
+              <div className="relative">
+                <input
+                  ref={inputRef}
+                  type={showPin ? 'text' : 'password'}
+                  maxLength={16}
+                  value={passcode}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setPasscode(val);
+                    setError(false);
+                    setErrorMessage('');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleLogin();
+                    }
+                  }}
+                  disabled={Boolean(lockedUntil && remainingSeconds > 0) || loading}
+                  placeholder="Enter Passcode PIN"
+                  className="w-full px-4 py-3 rounded-2xl bg-slate-950 border border-slate-700/80 text-center text-xl font-mono tracking-widest text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder:text-slate-600 placeholder:tracking-normal placeholder:text-sm"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPin(!showPin)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-1 cursor-pointer"
+                  title={showPin ? 'Hide PIN' : 'Show PIN'}
+                >
+                  {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
 
-              {/* Visual PIN Dots */}
+              {/* Visual PIN Dots Indicator (shows current entry length) */}
               <div 
                 onClick={() => inputRef.current?.focus()}
-                className="flex justify-center items-center gap-3 py-2 cursor-pointer select-none"
+                className="flex justify-center items-center gap-2.5 py-1 cursor-pointer select-none"
               >
                 {[0, 1, 2, 3, 4, 5].map((idx) => {
                   const isFilled = idx < passcode.length;
                   return (
                     <div
                       key={idx}
-                      className={`w-3.5 h-3.5 rounded-full transition-all duration-200 ${
+                      className={`w-3 h-3 rounded-full transition-all duration-200 ${
                         isFilled
-                          ? 'bg-blue-500 scale-125 shadow-[0_0_14px_rgba(59,130,246,0.8)]'
+                          ? 'bg-blue-500 scale-125 shadow-[0_0_12px_rgba(59,130,246,0.8)]'
                           : 'bg-slate-800 border border-slate-700'
                       }`}
                     />
                   );
                 })}
+                {passcode.length > 6 && (
+                  <span className="text-[10px] font-mono font-bold text-blue-400 ml-1">
+                    +{passcode.length - 6}
+                  </span>
+                )}
               </div>
 
-              {/* Numeric Keypad for Touch / Quick PIN */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-2.5 max-w-[260px] mx-auto pt-1">
+              {/* Numeric Keypad for Touch / Quick PIN Entry */}
+              <div className="grid grid-cols-3 gap-2 sm:gap-2.5 max-w-[280px] mx-auto pt-1">
                 {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
                   <button
                     key={digit}
                     type="button"
                     disabled={loading || Boolean(lockedUntil && remainingSeconds > 0)}
                     onClick={() => handleDigitClick(digit)}
-                    className="h-11 sm:h-12 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:bg-blue-600/30 border border-slate-700/60 font-mono text-lg font-bold text-slate-100 transition-all flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="h-11 sm:h-12 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:bg-blue-600/30 border border-slate-700/60 font-mono text-lg font-bold text-slate-100 transition-all flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
                   >
                     {digit}
                   </button>
                 ))}
                 <button
                   type="button"
-                  disabled={loading || Boolean(lockedUntil && remainingSeconds > 0)}
+                  disabled={loading || passcode.length === 0 || Boolean(lockedUntil && remainingSeconds > 0)}
                   onClick={handleDeleteDigit}
-                  className="h-11 sm:h-12 rounded-2xl bg-slate-800/40 hover:bg-slate-800 active:bg-slate-700 border border-slate-700/40 text-xs font-semibold text-slate-400 transition-all flex items-center justify-center cursor-pointer disabled:opacity-40"
+                  className="h-11 sm:h-12 rounded-2xl bg-slate-800/60 hover:bg-slate-700/80 active:bg-slate-700 border border-slate-700/50 text-xs font-semibold text-slate-300 transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Backspace"
                 >
-                  Clear
+                  <Delete className="w-4 h-4" />
                 </button>
                 <button
                   type="button"
@@ -321,13 +376,37 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
                   type="button"
                   disabled={loading || passcode.length < 4 || Boolean(lockedUntil && remainingSeconds > 0)}
                   onClick={() => handleLogin()}
-                  className="h-11 sm:h-12 rounded-2xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 border border-blue-500 text-white font-semibold text-xs transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-blue-600/20"
+                  className="h-11 sm:h-12 rounded-2xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 border border-blue-500 text-white font-semibold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-blue-600/25"
+                  title="Unlock Admin Panel"
                 >
                   {loading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                    <>
+                      <span>Go</span>
+                      <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                    </>
                   )}
+                </button>
+              </div>
+
+              {/* Secondary Actions: Clear & Full Unlock Button */}
+              <div className="flex items-center justify-between text-xs px-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleClearAll}
+                  disabled={loading || passcode.length === 0}
+                  className="text-slate-400 hover:text-slate-200 transition-colors disabled:opacity-30 cursor-pointer"
+                >
+                  Clear PIN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleLogin()}
+                  disabled={loading || passcode.length < 4 || Boolean(lockedUntil && remainingSeconds > 0)}
+                  className="text-blue-400 hover:text-blue-300 font-semibold transition-colors disabled:opacity-30 cursor-pointer flex items-center gap-1"
+                >
+                  {loading ? 'Verifying...' : 'Unlock Dashboard →'}
                 </button>
               </div>
             </div>

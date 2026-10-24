@@ -23,6 +23,8 @@ import {
   Settings,
   Mail,
   Eye,
+  EyeOff,
+  Loader2,
   Radio,
   Lock,
   Search,
@@ -213,6 +215,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [currentPasscode, setCurrentPasscode] = useState('');
   const [newPasscode, setNewPasscode] = useState('');
   const [confirmPasscode, setConfirmPasscode] = useState('');
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [adminUsernameVal, setAdminUsernameVal] = useState(websiteSettings?.adminUsername || 'admin');
   const [passcodeLoading, setPasscodeLoading] = useState(false);
   const [passcodeMsg, setPasscodeMsg] = useState<{ text: string; isError: boolean } | null>(null);
 
@@ -413,12 +419,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setPasscodeMsg({ text: 'Please enter your current administrative passcode.', isError: true });
       return;
     }
-    if (!newPasscode.trim() || newPasscode.trim().length < 6) {
-      setPasscodeMsg({ text: 'New passcode must be at least 6 characters.', isError: true });
+    if (!newPasscode.trim() || newPasscode.trim().length < 4) {
+      setPasscodeMsg({ text: 'New passcode must be at least 4 digits or characters.', isError: true });
       return;
     }
-    if (newPasscode !== confirmPasscode) {
-      setPasscodeMsg({ text: 'New passcodes do not match.', isError: true });
+    if (newPasscode.trim() !== confirmPasscode.trim()) {
+      setPasscodeMsg({ text: 'New passcode and confirmation do not match. Please verify.', isError: true });
       return;
     }
 
@@ -430,21 +436,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         body: JSON.stringify({
           currentPasscode: currentPasscode.trim(),
           newPasscode: newPasscode.trim(),
+          newUsername: adminUsernameVal.trim() || 'admin',
         }),
       });
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to change passcode.');
+        throw new Error(data.error || 'Failed to change administrative passcode.');
       }
 
-      setPasscodeMsg({ text: data.message || 'Admin passcode changed successfully!', isError: false });
+      setPasscodeMsg({ text: data.message || 'Administrative passcode updated successfully! Active immediately.', isError: false });
       setCurrentPasscode('');
       setNewPasscode('');
       setConfirmPasscode('');
-      showNotification('Admin passcode updated successfully!');
+      showNotification('Administrative passcode updated and saved to database!');
+      fetchBackendData();
     } catch (err: any) {
-      setPasscodeMsg({ text: err.message || 'Passcode change failed.', isError: true });
+      setPasscodeMsg({ text: err.message || 'Passcode change failed. Please verify current passcode.', isError: true });
     } finally {
       setPasscodeLoading(false);
     }
@@ -2775,30 +2783,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div>
                 <h2 className="text-xl font-black text-white">Security & Passcode Authentication</h2>
                 <p className="text-xs text-slate-400">
-                  Role-based permissions and dedicated passcode authentication gate (Passcode: 200911).
+                  Role-based permissions and dedicated salted cryptographic passcode gate.
                 </p>
               </div>
 
-              <div className="p-6 rounded-2xl bg-[#0f172a] border border-slate-800 space-y-4">
-                <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/30 flex items-center gap-3">
-                  <ShieldCheck className="w-8 h-8 text-emerald-400 shrink-0" />
+              <div className="p-6 rounded-2xl bg-[#0f172a] border border-slate-800 space-y-5">
+                <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/30 flex items-start sm:items-center gap-3">
+                  <ShieldCheck className="w-8 h-8 text-emerald-400 shrink-0 mt-0.5 sm:mt-0" />
                   <div>
-                    <h4 className="text-sm font-bold text-emerald-300">Passcode Protection Verified</h4>
-                    <p className="text-xs text-emerald-400/80">
-                      Authorized Passcode: <strong className="font-mono text-white">200911</strong>. No Gmail or phone login required.
+                    <h4 className="text-sm font-bold text-emerald-300">Master Passcode Protection Active</h4>
+                    <p className="text-xs text-emerald-400/90 mt-0.5">
+                      Status: <span className="font-mono text-white bg-emerald-900/60 px-2 py-0.5 rounded text-[11px]">PBKDF2-SHA256 Encrypted</span> • Protected against brute-force attacks with automatic progressive lockout.
                     </p>
+                    {websiteSettings?.adminPasscodeLastChanged && (
+                      <p className="text-[11px] text-emerald-300/70 mt-1 font-mono">
+                        Last passcode change: {new Date(websiteSettings.adminPasscodeLastChanged).toLocaleString()}
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 {/* Change Administrator Passcode Form */}
-                <form onSubmit={handleChangePasscode} className="p-4 rounded-xl bg-slate-900 border border-slate-700/80 space-y-3">
-                  <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
-                    <Key className="w-4 h-4 text-amber-400" />
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">Change Administrator Passcode</h4>
+                <form onSubmit={handleChangePasscode} className="p-5 rounded-2xl bg-slate-900 border border-slate-700/80 space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <Key className="w-4 h-4 text-amber-400" />
+                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Change Administrator Passcode</h4>
+                    </div>
+                    <span className="text-[11px] font-mono text-slate-400">Persists to Database</span>
                   </div>
 
                   {passcodeMsg && (
-                    <div className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                    <div className={`p-3.5 rounded-xl text-xs flex items-center gap-2.5 ${
                       passcodeMsg.isError ? 'bg-rose-500/20 border border-rose-500/40 text-rose-300' : 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300'
                     }`}>
                       {passcodeMsg.isError ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
@@ -2806,67 +2822,120 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                    <div>
+                      <label className="text-[10px] font-mono text-slate-400 uppercase block mb-1">
+                        Admin Identifier
+                      </label>
+                      <input
+                        type="text"
+                        value={adminUsernameVal}
+                        onChange={(e) => setAdminUsernameVal(e.target.value)}
+                        placeholder="admin"
+                        className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono text-xs focus:ring-1 focus:ring-amber-400 focus:outline-none"
+                      />
+                    </div>
+
                     <div>
                       <label className="text-[10px] font-mono text-slate-400 uppercase block mb-1">
                         Current Passcode *
                       </label>
-                      <input
-                        type="password"
-                        required
-                        value={currentPasscode}
-                        onChange={(e) => setCurrentPasscode(e.target.value)}
-                        placeholder="Current (default 200911)"
-                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono text-xs focus:ring-1 focus:ring-amber-400"
-                      />
+                      <div className="relative">
+                        <input
+                          type={showCurrentPass ? 'text' : 'password'}
+                          required
+                          value={currentPasscode}
+                          onChange={(e) => setCurrentPasscode(e.target.value)}
+                          placeholder="Current passcode"
+                          className="w-full px-3 py-2.5 pr-8 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono text-xs focus:ring-1 focus:ring-amber-400 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPass(!showCurrentPass)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                        >
+                          {showCurrentPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
                     </div>
+
                     <div>
                       <label className="text-[10px] font-mono text-slate-400 uppercase block mb-1">
                         New Passcode *
                       </label>
-                      <input
-                        type="password"
-                        required
-                        minLength={6}
-                        value={newPasscode}
-                        onChange={(e) => setNewPasscode(e.target.value)}
-                        placeholder="Min. 6 characters"
-                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono text-xs focus:ring-1 focus:ring-amber-400"
-                      />
+                      <div className="relative">
+                        <input
+                          type={showNewPass ? 'text' : 'password'}
+                          required
+                          minLength={4}
+                          value={newPasscode}
+                          onChange={(e) => setNewPasscode(e.target.value)}
+                          placeholder="Min. 4 digits/chars"
+                          className="w-full px-3 py-2.5 pr-8 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono text-xs focus:ring-1 focus:ring-amber-400 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPass(!showNewPass)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                        >
+                          {showNewPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
                     </div>
+
                     <div>
                       <label className="text-[10px] font-mono text-slate-400 uppercase block mb-1">
                         Confirm New Passcode *
                       </label>
-                      <input
-                        type="password"
-                        required
-                        minLength={6}
-                        value={confirmPasscode}
-                        onChange={(e) => setConfirmPasscode(e.target.value)}
-                        placeholder="Repeat new passcode"
-                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono text-xs focus:ring-1 focus:ring-amber-400"
-                      />
+                      <div className="relative">
+                        <input
+                          type={showConfirmPass ? 'text' : 'password'}
+                          required
+                          minLength={4}
+                          value={confirmPasscode}
+                          onChange={(e) => setConfirmPasscode(e.target.value)}
+                          placeholder="Repeat new passcode"
+                          className="w-full px-3 py-2.5 pr-8 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono text-xs focus:ring-1 focus:ring-amber-400 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPass(!showConfirmPass)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                        >
+                          {showConfirmPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex justify-end pt-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                    <p className="text-[11px] text-slate-400">
+                      • When changed, the old passcode is invalidated and the new passcode is required immediately for future logins.
+                    </p>
                     <button
                       type="submit"
-                      disabled={passcodeLoading || !currentPasscode || !newPasscode}
-                      className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs flex items-center gap-2 cursor-pointer shadow-md disabled:opacity-50"
+                      disabled={passcodeLoading || !currentPasscode || !newPasscode || !confirmPasscode}
+                      className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-slate-950 font-black text-xs flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                     >
-                      <Lock className="w-3.5 h-3.5" />
-                      <span>{passcodeLoading ? 'Updating Passcode...' : 'Update Admin Passcode'}</span>
+                      {passcodeLoading ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Saving to Database...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="w-3.5 h-3.5" />
+                          <span>Save & Activate New Passcode</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </form>
 
-                <div className="text-xs text-slate-400 space-y-1">
+                <div className="text-xs text-slate-400 space-y-1.5 pt-1">
                   <p>• Ordinary customer sessions cannot access administrative endpoints or view provider credentials.</p>
-                  <p>• All administrative actions are signed with actor identifiers and stored in the audit trail.</p>
-                  <p>• Sensitive API keys are masked using one-way preview redaction before transmission.</p>
-                  <p>• Database backups and state persistence occur synchronously on disk (`data/stevelogs_db.json`).</p>
+                  <p>• All administrative actions are cryptographically signed with actor identifiers and stored in the audit trail.</p>
+                  <p>• Passcode changes are committed immediately to persistent database storage (`data/stevelogs_db.json`).</p>
                 </div>
               </div>
             </div>

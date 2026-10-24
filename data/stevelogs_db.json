@@ -34,8 +34,9 @@
     "manualPaymentMinDeposit": 500,
     "termsOfService": "Stevelogs Terms: Digital products delivered immediately upon confirmed payment. Unreceived SMS within validity window are fully refundable.",
     "privacyPolicy": "Your account info and transactions are encrypted and confidential. We never share customer data with third parties.",
-    "adminPasscodeHash": "1755ae3373f28113d7b5b6b8a1c0c9fe2020ecfc26742418ca8bcbfbfb5ba875",
-    "adminPasscodeSalt": "stevelogs_default_salt_200911",
+    "adminPasscodeHash": "3d7c69b13d9a8ecb172746628ce3d6c2fc6a1da4fd7b88e962543730a55319c7",
+    "adminPasscodeSalt": "fe4d7f85e030a4471e772a693e8bb934",
+    "adminUsername": "admin",
     "referralCommissionPercent": 10,
     "referralMinWithdrawal": 1000,
     "referralEnabled": true,
@@ -49,7 +50,8 @@
     "emailServiceEnabled": false,
     "emailProvider": "none",
     "emailApiKey": "",
-    "emailFromAddress": "support@stevelogs.com"
+    "emailFromAddress": "support@stevelogs.com",
+    "adminPasscodeLastChanged": "2026-10-24T13:48:38.363Z"
   },
   "providers": [
     {
@@ -56630,7 +56632,7 @@
       "status": "Active",
       "tier": "VIP Reseller",
       "joinedAt": "2026-01-15T10:00:00Z",
-      "lastActive": "2026-10-24T09:27:38.056Z",
+      "lastActive": "2026-10-22T07:39:47.861Z",
       "referralCode": "SL-1001",
       "referralLink": "https://stevelogsmarketplace.com/?ref=SL-1001",
       "totalReferrals": 0,
@@ -56689,19 +56691,7 @@
       "referralBalance": 0
     }
   ],
-  "transactions": [
-    {
-      "id": "tx-1792834047024",
-      "reference": "SL-MAN-71849",
-      "service": "Manual Wallet Adjustment",
-      "description": "Debit: Test cleanup",
-      "amount": 5000,
-      "type": "debit",
-      "status": "Successful",
-      "date": "09:27 AM",
-      "customerId": "CUST-1001"
-    }
-  ],
+  "transactions": [],
   "orders": [],
   "telegramPricing": {
     "providerId": "nova",
@@ -56778,28 +56768,18 @@
   "telegramOrders": [],
   "auditLogs": [
     {
-      "id": "aud-1792834058056-193",
-      "timestamp": "2026-10-24T09:27:38.056Z",
+      "id": "aud-1792849718363-519",
+      "timestamp": "2026-10-24T13:48:38.363Z",
       "actor": "Super Administrator",
-      "action": "Manual Payment Approved & Credited",
-      "category": "WALLET",
-      "details": "Approved manual deposit [Ref: MAN-DEP-057448-3506] for Stevo Tech (Admin/Owner). Credited ₦2,500 (Prev: ₦0 -> New: ₦2,500)",
+      "action": "Admin Passcode Changed",
+      "category": "SECURITY",
+      "details": "Administrative passcode was updated securely. Hash: PBKDF2-SHA256 (Salt: fe4d7f85...).",
       "ip": "127.0.0.1",
       "status": "Success"
     },
     {
-      "id": "aud-1792834057448-598",
-      "timestamp": "2026-10-24T09:27:37.448Z",
-      "actor": "Stevo Tech (Admin/Owner)",
-      "action": "Manual Payment Request Submitted",
-      "category": "WALLET",
-      "details": "Stevo Tech (Admin/Owner) (CUST-1001) submitted manual transfer of ₦2,500 [Ref: MAN-DEP-057448-3506]",
-      "ip": "127.0.0.1",
-      "status": "Success"
-    },
-    {
-      "id": "aud-1792834057435-275",
-      "timestamp": "2026-10-24T09:27:37.435Z",
+      "id": "aud-1792849718340-997",
+      "timestamp": "2026-10-24T13:48:38.340Z",
       "actor": "Super Administrator",
       "action": "Admin Panel Authenticated",
       "category": "AUTH",
@@ -56808,44 +56788,114 @@
       "status": "Success"
     },
     {
-      "id": "aud-1792834047030-942",
-      "timestamp": "2026-10-24T09:27:27.030Z",
-      "actor": "Super Administrator",
-      "action": "Customer Balance Debited",
-      "category": "WALLET",
-      "details": "Stevo Tech (Admin/Owner) (CUST-1001): ₦5,000 - Reason: Test cleanup [Prev: ₦5,000 -> New: ₦0]",
-      "ip": "127.0.0.1",
-      "status": "Success"
-    },
-    {
-      "id": "aud-1792834046997-552",
-      "timestamp": "2026-10-24T09:27:26.997Z",
-      "actor": "Super Administrator",
-      "action": "Manual Payment Approved & Credited",
-      "category": "WALLET",
-      "details": "Approved manual deposit [Ref: MAN-DEP-046955-6280] for Stevo Tech (Admin/Owner). Credited ₦5,000 (Prev: ₦0 -> New: ₦5,000)",
-      "ip": "127.0.0.1",
-      "status": "Success"
-    },
-    {
-      "id": "aud-1792834046985-743",
-      "timestamp": "2026-10-24T09:27:26.986Z",
-      "actor": "Stevo Tech (Admin/Owner)",
-      "action": "Manual Payment Request Submitted",
-      "category": "WALLET",
-      "details": "Stevo Tech (Admin/Owner) (CUST-1001) submitted manual transfer of ₦5,000 [Ref: MAN-DEP-046955-6280]",
-      "ip": "127.0.0.1",
-      "status": "Success"
-    },
-    {
-      "id": "aud-1792834046942-328",
-      "timestamp": "2026-10-24T09:27:26.942Z",
+      "id": "aud-1792849713925-705",
+      "timestamp": "2026-10-24T13:48:33.925Z",
       "actor": "Super Administrator",
       "action": "Admin Panel Authenticated",
       "category": "AUTH",
       "details": "Successful administrator authentication session created from 127.0.0.1.",
       "ip": "127.0.0.1",
       "status": "Success"
+    },
+    {
+      "id": "aud-1792849710206-307",
+      "timestamp": "2026-10-24T13:48:30.206Z",
+      "actor": "Unknown",
+      "action": "Admin Login Failed",
+      "category": "AUTH",
+      "details": "Invalid credentials attempt (1/5) from 127.0.0.1.",
+      "ip": "127.0.0.1",
+      "status": "Failed"
+    },
+    {
+      "id": "aud-1792849705966-235",
+      "timestamp": "2026-10-24T13:48:25.966Z",
+      "actor": "Super Administrator",
+      "action": "Admin Panel Authenticated",
+      "category": "AUTH",
+      "details": "Successful administrator authentication session created from 127.0.0.1.",
+      "ip": "127.0.0.1",
+      "status": "Success"
+    },
+    {
+      "id": "aud-1792849700073-729",
+      "timestamp": "2026-10-24T13:48:20.073Z",
+      "actor": "Super Administrator",
+      "action": "Admin Passcode Changed",
+      "category": "SECURITY",
+      "details": "Administrative passcode was updated securely. Hash: PBKDF2-SHA256 (Salt: 5706629a...).",
+      "ip": "127.0.0.1",
+      "status": "Success"
+    },
+    {
+      "id": "aud-1792849700051-743",
+      "timestamp": "2026-10-24T13:48:20.051Z",
+      "actor": "Super Administrator",
+      "action": "Admin Panel Authenticated",
+      "category": "AUTH",
+      "details": "Successful administrator authentication session created from 127.0.0.1.",
+      "ip": "127.0.0.1",
+      "status": "Success"
+    },
+    {
+      "id": "aud-1792849694610-661",
+      "timestamp": "2026-10-24T13:48:14.610Z",
+      "actor": "Super Administrator",
+      "action": "Admin Panel Authenticated",
+      "category": "AUTH",
+      "details": "Successful administrator authentication session created from 127.0.0.1.",
+      "ip": "127.0.0.1",
+      "status": "Success"
+    },
+    {
+      "id": "aud-1792849690709-367",
+      "timestamp": "2026-10-24T13:48:10.709Z",
+      "actor": "Super Administrator",
+      "action": "Admin Panel Authenticated",
+      "category": "AUTH",
+      "details": "Successful administrator authentication session created from 127.0.0.1.",
+      "ip": "127.0.0.1",
+      "status": "Success"
+    },
+    {
+      "id": "aud-1792849052358-290",
+      "timestamp": "2026-10-24T13:37:32.358Z",
+      "actor": "Unknown",
+      "action": "Admin Login Failed",
+      "category": "AUTH",
+      "details": "Invalid credentials attempt (1/5) from 127.0.0.1.",
+      "ip": "127.0.0.1",
+      "status": "Failed"
+    },
+    {
+      "id": "aud-1792848906035-803",
+      "timestamp": "2026-10-24T13:35:06.035Z",
+      "actor": "Super Administrator",
+      "action": "Admin Panel Authenticated",
+      "category": "AUTH",
+      "details": "Successful administrator authentication session created from 127.0.0.1.",
+      "ip": "127.0.0.1",
+      "status": "Success"
+    },
+    {
+      "id": "aud-1792848892913-382",
+      "timestamp": "2026-10-24T13:34:52.913Z",
+      "actor": "Super Administrator",
+      "action": "Admin Panel Authenticated",
+      "category": "AUTH",
+      "details": "Successful administrator authentication session created from 127.0.0.1.",
+      "ip": "127.0.0.1",
+      "status": "Success"
+    },
+    {
+      "id": "aud-1792848871853-637",
+      "timestamp": "2026-10-24T13:34:31.853Z",
+      "actor": "Unknown",
+      "action": "Admin Login Failed",
+      "category": "AUTH",
+      "details": "Invalid credentials attempt (1/5) from 127.0.0.1.",
+      "ip": "127.0.0.1",
+      "status": "Failed"
     },
     {
       "id": "aud-1792831368948-807",
@@ -57191,5 +57241,55 @@
   ],
   "specialOrders": [],
   "manualPaymentRequests": [],
-  "notifications": []
+  "notifications": [],
+  "adminSessions": {
+    "adm_sess_d280aa44a42c47dc5ae8204786f79b06dfb3f2fe02fe8cbf5e50be5dc60d0bde": {
+      "token": "adm_sess_d280aa44a42c47dc5ae8204786f79b06dfb3f2fe02fe8cbf5e50be5dc60d0bde",
+      "actor": "Super Administrator",
+      "role": "super_admin",
+      "createdAt": 1792849690705,
+      "expiresAt": 1792878490705,
+      "ip": "127.0.0.1"
+    },
+    "adm_sess_da1cae063b80bcc915be05c8f5dfe4b4153a17a5c61dc4f7fb8d2de389b18685": {
+      "token": "adm_sess_da1cae063b80bcc915be05c8f5dfe4b4153a17a5c61dc4f7fb8d2de389b18685",
+      "actor": "Super Administrator",
+      "role": "super_admin",
+      "createdAt": 1792849694606,
+      "expiresAt": 1792878494606,
+      "ip": "127.0.0.1"
+    },
+    "adm_sess_ae03e80e34badef66857e57e0cf4361b074e4595393af5490b6796bc88392897": {
+      "token": "adm_sess_ae03e80e34badef66857e57e0cf4361b074e4595393af5490b6796bc88392897",
+      "actor": "Super Administrator",
+      "role": "super_admin",
+      "createdAt": 1792849700046,
+      "expiresAt": 1792878500064,
+      "ip": "127.0.0.1"
+    },
+    "adm_sess_613bd4ae7ec021c51cb2ac8826bbf1c8c62bbc31e44cdf0b7d4567ffa6fa5e00": {
+      "token": "adm_sess_613bd4ae7ec021c51cb2ac8826bbf1c8c62bbc31e44cdf0b7d4567ffa6fa5e00",
+      "actor": "Super Administrator",
+      "role": "super_admin",
+      "createdAt": 1792849705962,
+      "expiresAt": 1792878505962,
+      "ip": "127.0.0.1"
+    },
+    "adm_sess_9ac7b7e968b29dd627f62b1a6311a3f642ef0e443201f5fb5da82636e4639dc8": {
+      "token": "adm_sess_9ac7b7e968b29dd627f62b1a6311a3f642ef0e443201f5fb5da82636e4639dc8",
+      "actor": "Super Administrator",
+      "role": "super_admin",
+      "createdAt": 1792849713921,
+      "expiresAt": 1792878513921,
+      "ip": "127.0.0.1"
+    },
+    "adm_sess_e813f3284b18812d33b8262763248da850171b028233a521179654cf19e35596": {
+      "token": "adm_sess_e813f3284b18812d33b8262763248da850171b028233a521179654cf19e35596",
+      "actor": "Super Administrator",
+      "role": "super_admin",
+      "createdAt": 1792849718336,
+      "expiresAt": 1792878518355,
+      "ip": "127.0.0.1"
+    }
+  }
 }

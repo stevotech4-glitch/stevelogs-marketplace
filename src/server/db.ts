@@ -30,7 +30,8 @@ import {
   PublicSpecialListing,
   SpecialMarketplaceOrder,
   ManualPaymentRequest,
-  CustomerNotification
+  CustomerNotification,
+  AdminSession
 } from '../types';
 import { generateMasterNumberOffers, generateMasterLogOffers } from './catalogData';
 
@@ -61,6 +62,7 @@ export interface DatabaseState {
   specialOrders: SpecialMarketplaceOrder[];
   manualPaymentRequests: ManualPaymentRequest[];
   notifications: CustomerNotification[];
+  adminSessions?: Record<string, AdminSession>;
 }
 
 const DB_FILE_PATH = path.resolve(process.cwd(), 'data', 'stevelogs_db.json');
@@ -116,6 +118,7 @@ const INITIAL_SETTINGS: WebsiteMasterSettings = {
   privacyPolicy: 'Your account info and transactions are encrypted and confidential. We never share customer data with third parties.',
   adminPasscodeHash: defaultAdminPasscode.hash,
   adminPasscodeSalt: defaultAdminPasscode.salt,
+  adminUsername: 'admin',
   referralCommissionPercent: 10,
   referralMinWithdrawal: 1000,
   referralEnabled: true,
@@ -725,6 +728,7 @@ class Database {
           specialOrders: parsed.specialOrders || [],
           manualPaymentRequests: parsed.manualPaymentRequests || [],
           notifications: parsed.notifications || [],
+          adminSessions: parsed.adminSessions || {},
         };
 
         if (
@@ -786,6 +790,7 @@ class Database {
       specialOrders: [],
       manualPaymentRequests: [],
       notifications: [],
+      adminSessions: {},
     };
 
     this.saveImmediate(defaultState);
@@ -807,7 +812,7 @@ class Database {
     return true;
   }
 
-  private saveImmediate(state: DatabaseState) {
+  public saveImmediate(state: DatabaseState = this.state) {
     try {
       const dir = path.dirname(DB_FILE_PATH);
       if (!fs.existsSync(dir)) {
@@ -1099,11 +1104,7 @@ class Database {
   }
 
   getCustomer(id: string): CustomerRecord | undefined {
-    if (!id) return undefined;
-    const clean = id.trim();
-    return this.state.customers.find(
-      (c) => c.id === clean || c.id.toLowerCase() === clean.toLowerCase() || c.email.toLowerCase() === clean.toLowerCase()
-    );
+    return this.state.customers.find((c) => c.id === id);
   }
 
   adjustCustomerBalance(
@@ -1810,41 +1811,93 @@ class Database {
     return { success: true, customer: cust };
   }
 
-  changeAdminPasscode(currentPasscode: string, newPasscode: string): { success: boolean; error?: string } {
-    if (!currentPasscode || !newPasscode) {
-      return { success: false, error: 'Current passcode and new passcode are required.' };
+  changeAdminPasscode(
+    currentPasscode: string,
+    newPasscode: string,
+    newUsername?: string,
+    actor = 'Super Admin'
+  ): { success: boolean; error?: string; message?: string } {
+    if (!currentPasscode || !currentPasscode.trim()) {
+      return { success: false, error: 'Current passcode is required to authorize the change.' };
     }
 
-    if (newPasscode.trim().length < 6) {
-      return { success: false, error: 'New admin passcode must be at least 6 characters long.' };
+    if (!newPasscode || !newPasscode.trim()) {
+      return { success: false, error: 'New passcode is required.' };
+    }
+
+    const trimmedNew = newPasscode.trim();
+    if (trimmedNew.length < 4) {
+      return { success: false, error: 'New passcode must be at least 4 digits or characters long.' };
     }
 
     const settings = this.state.settings;
     let isCurrentValid = false;
     if (settings.adminPasscodeHash && settings.adminPasscodeSalt) {
-      isCurrentValid = verifyPasscode(currentPasscode, settings.adminPasscodeHash, settings.adminPasscodeSalt);
+      isCurrentValid = verifyPasscode(currentPasscode.trim(), settings.adminPasscodeHash, settings.adminPasscodeSalt);
     } else if (currentPasscode.trim() === '200911') {
       isCurrentValid = true;
     }
 
     if (!isCurrentValid) {
-      return { success: false, error: 'Current passcode is incorrect. Access denied.' };
+      return { success: false, error: 'The current passcode you entered is incorrect. Access denied.' };
     }
 
-    const { hash, salt } = hashPasscode(newPasscode);
+    const { hash, salt } = hashPasscode(trimmedNew);
     settings.adminPasscodeHash = hash;
     settings.adminPasscodeSalt = salt;
+    settings.adminPasscodeLastChanged = new Date().toISOString();
+
+    if (newUsername && newUsername.trim()) {
+      settings.adminUsername = newUsername.trim();
+    }
 
     this.addAuditLog({
-      actor: 'Super Admin',
+      actor,
       action: 'Admin Passcode Changed',
       category: 'SECURITY',
-      details: 'Master administrative passcode was updated successfully.',
+      details: `Administrative passcode was updated securely. Hash: PBKDF2-SHA256 (Salt: ${salt.slice(0, 8)}...).`,
       status: 'Success',
     });
 
     this.scheduleSave();
-    return { success: true };
+    this.saveImmediate(this.state);
+    return {
+      success: true,
+      message: 'Administrative passcode updated successfully in the persistent database. The new passcode is active immediately.',
+    };
+  }
+
+  // --- PERSISTENT ADMIN SESSIONS ---
+  getAdminSession(token: string): AdminSession | null {
+    if (!token) return null;
+    if (!this.state.adminSessions) this.state.adminSessions = {};
+    const sess = this.state.adminSessions[token];
+    if (!sess) return null;
+    if (sess.expiresAt <= Date.now()) {
+      delete this.state.adminSessions[token];
+      this.scheduleSave();
+      return null;
+    }
+    return sess;
+  }
+
+  saveAdminSession(session: AdminSession): void {
+    if (!this.state.adminSessions) this.state.adminSessions = {};
+    this.state.adminSessions[session.token] = session;
+    // Housekeeping: remove expired sessions
+    const now = Date.now();
+    for (const [key, s] of Object.entries(this.state.adminSessions)) {
+      if (s.expiresAt <= now) {
+        delete this.state.adminSessions[key];
+      }
+    }
+    this.scheduleSave();
+  }
+
+  removeAdminSession(token: string): void {
+    if (!this.state.adminSessions) return;
+    delete this.state.adminSessions[token];
+    this.scheduleSave();
   }
 
   // --- MARKETPLACE (POWERED BY RAKIB SOCIALS ONLY) ---

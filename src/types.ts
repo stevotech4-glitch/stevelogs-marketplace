@@ -317,6 +317,8 @@ export interface WebsiteMasterSettings {
   privacyPolicy: string;
   adminPasscodeHash?: string;
   adminPasscodeSalt?: string;
+  adminUsername?: string;
+  adminPasscodeLastChanged?: string;
   referralCommissionPercent?: number;
   referralMinWithdrawal?: number;
   referralEnabled?: boolean;
@@ -842,5 +844,15 @@ export interface CustomerNotification {
   popUpShown: boolean;
   createdAt: string;
 }
+
+export interface AdminSession {
+  token: string;
+  actor: string;
+  role: 'super_admin';
+  createdAt: number;
+  expiresAt: number;
+  ip: string;
+}
+
 
 
